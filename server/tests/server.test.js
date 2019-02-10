@@ -51,6 +51,92 @@ describe('SERVER', () => {
 
     });
 
+    describe('Update /todos/:id', () => {
+
+        it('should update a todo', (done) => {
+            var new_text = 'some new text';
+            var id = firstToDo._id.toHexString();
+            request(app)
+                .patch(`/todos/${id}`)
+                .send({
+                    completed: true,
+                    text: new_text
+                })
+                .expect((res) => {
+                    expect(res.status).toBe(200);
+                    expect(res.body.toDo.text).toBe(new_text);
+                    expect(res.body.toDo.completed).toBe(true);
+                    expect(res.body.toDo.completedAt).toBeA('number');
+                })
+                .end((err, res) => {
+                    if (err) {
+                        return done(err);
+                    }
+
+                    ToDo.findById(id).then((toDo) => {
+                        expect(toDo.text).toBe(new_text);
+                        expect(toDo.completed).toBe(true);
+                        expect(toDo.completedAt).toBeA('number');
+                        done();
+                    }).catch((err) => {
+                        done(err);
+                    });
+                });
+        });
+
+        it('should clear completedAt when todo is not completed', (done) => {
+            var new_text = 'some new text';
+            var id = firstToDo._id.toHexString();
+            request(app)
+                .patch(`/todos/${id}`)
+                .send({ completed: false, text: new_text })
+                .expect((res) => {
+                    expect(res.body.toDo.text).toBe(new_text);
+                    expect(res.body.toDo.completed).toBe(false);
+                    expect(res.body.toDo.completedAt).toNotExist();
+                })
+                .end(done);
+        });
+
+    });
+
+    describe('Delete /todos/:id', () => {
+
+        it('should delete a todo', (done) => {
+            var id = firstToDo._id.toHexString();
+            request(app)
+                .delete(`/todos/${id}`)
+                .expect((res) => {
+                    expect(res.status).toBe(200);
+                    expect(res.body.toDo.text).toBe(firstToDo.text);
+                })
+                .end((err, res) => {
+                    if (err) return done(err);
+
+                    ToDo.findById(id).then((toDo) => {
+                        expect(toDo).toNotExist();
+                        done();
+                    }).catch((err) => done(err));
+                });                
+        });
+
+        it('should not delete a non-existent todo', (done) => {
+            random_id = new ObjectID().toHexString();
+            request(app)
+                .delete(`/todos/${random_id}`)
+                .expect(404)
+                .end(done);
+        });
+
+        it('should not return 404 if id is invalid', (done) => {
+            request(app)
+                .delete(`/todos/1234abcd`)
+                .expect(404)
+                .end(done);
+        });
+
+    } );
+
     describe('GET /todos', () => {
 
         it('should fetch all todos', (done) => {
@@ -65,7 +151,7 @@ describe('SERVER', () => {
 
     });
 
-    describe('GET /todos', () => {
+    describe('GET /todos/:id', () => {
 
         it('should fetch all todos', (done) => {
             var id = firstToDo._id.toHexString();
